@@ -140,5 +140,5 @@ with sqlite3.connect(out_db_file) as db_connection:
             insert_arr =(date.isoformat(' '), str(home_team), int(score_h), str(away_team), int(score_a))
 
             print(insert_arr)
-            db_cursor.execute(SQL_INSERT, insert_arr)
+            db_cursor.execute(SQL_INSERT, insert_arr).fetchall()
             db_connection.commit()
