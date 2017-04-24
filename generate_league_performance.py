@@ -79,12 +79,12 @@ with sqlite3.connect(DB_FILE) as db_in_connection:
 
 
     win_sizes = get_stats_window_sizes()
-    # win_sizes = [12]
+    # win_sizes = [6]
 
     end_of_gameweek_thursdays = get_end_of_gameweek_thursdays()
 
     print('Predictive performance results')
-    print('Winsize (wks), Accuracy (%), Stdev')
+    print('Winsize (wks), Accuracy (%), Stdev, Weekly Performances (%s)')
     for window_size in win_sizes:
         pcent_rights_for_win_size = []
 
@@ -136,4 +136,4 @@ with sqlite3.connect(DB_FILE) as db_in_connection:
 
         log.debug('=== League performance with window size = %i, average accuracy = %2.2f, std dev = %2.2f ===' %
                   (window_size, mean, stddev ))
-        print('%i, %2.2f, %2.2f' % (window_size, mean, stddev))
+        print('%i, %2.2f, %2.2f, %s' % (window_size, mean, stddev, ', '.join(map(lambda x : str(x), pcent_rights_for_win_size))))
