@@ -1,19 +1,22 @@
 #!/usr/bin/env python
 
+# 1) Generates a sequence of temporally windowed stats for each team over a season.
+# 2) For each window, show who they play next and what the result was.
+#
+# A subsequent program can then take this raw, windowed information and use it to construct
+# 'leagues' for determining which stats/process is best for determining future results.
+
+
 import sqlite3
 import datetime
-from argparse import ArgumentParser
 
-DB_FILE = '/Users/jhume/work/fantasy_football/test_out.db'
-DB_OUT_FILE = '/Users/jhume/work/fantasy_football/tables_out.db'
-
+DB_FILE = '/Users/jhume/work/fantasy_football/raw_results.db'
+DB_OUT_FILE = '/Users/jhume/work/fantasy_football/windowed_stats_out.db'
 
 
-# Total number of Premier League matches each team plays
-MAX_MATCHES = 20 *2 - 2
-
-# First Thursday after the season starts. It and subsequent Thursday is chosen as the date that that the program will
-# calculate league positions on because:
+# Specify the first Thursday after the season starts.
+# Our window, whatever its size, will move forward one week at a time and we use Thursday as our sampling day for this
+# because:
 # a) All matches for a gameweek are completed.
 # b) not normally any matches on a Thursday.
 SEASON_FIRST_THU= '2016-08-18'
@@ -21,13 +24,11 @@ SEASON_FIRST_THU= '2016-08-18'
 # Weeks in season
 SEASON_WEEKS = 40
 
-
-
 SQL_CREATE_TABLE = '''
-CREATE TABLE league_tables (
+CREATE TABLE windowed_stats (
     id INTEGER PRIMARY KEY,
     win_size INTEGER NOT NULL,
-    thursday TEXT NOT NULL,
+    win_end_thursday TEXT NOT NULL,
     team TEXT NOT NULL,
     played INTEGER NOT NULL,
     won INTEGER NOT NULL,
@@ -35,38 +36,14 @@ CREATE TABLE league_tables (
     lost INTEGER NOT NULL,
     home_diff INTEGER NOT NULL,
     away_diff INTEGER NOT NULL,
-    goal_diff INTEGER NOT NULL,
-    points INTEGER NOT NULL,
     next_match INTEGER NOT NULL,
     next_at_home INTEGER NOT NULL,
     next_opponent INTEGER NOT NULL,
     next_result TEXT NOT NULL
 ); '''
 
-SQL_INSERT = '''INSERT INTO league_tables (win_size, thursday, team, played, won, drawn, lost, home_diff, away_diff, 
-goal_diff, points, next_match, next_at_home, next_opponent, next_result) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'''
 
-# parser: ArgumentParser = ArgumentParser()
-# parser.description = "Downloads the Premier League results for the current season from the BBC"
-#
-# parser.add_argument('-i', '--in-db',
-#                     help='Specifies the url to download from %s' % DB_FILE,
-#                     default=DB_FILE,
-#                     required=False,
-#                     type=str
-#                     )
-#
-# parser.add_argument('-o', '--out-db',
-#                     help='Specifies the name of sqlite DB to OVERWRITE %s' % DB_FILE,
-#                     default=DB_FILE,
-#                     required=False,
-#                     type=str
-#                     )
-
-
-in_db_file = DB_FILE
-
-with sqlite3.connect(in_db_file) as db_in_connection:
+with sqlite3.connect(DB_FILE) as db_in_connection:
     db_in_cursor = db_in_connection.cursor()
 
     # Get the team names
@@ -157,11 +134,7 @@ with sqlite3.connect(in_db_file) as db_in_connection:
                     if away_diff is None:  # Cope with possible no away games at start of season
                         away_diff = 0
 
-                    # Calculate meta-stats
-                    points = 3* wins + draws
                     played = wins + draws + losses
-                    goal_diff = home_diff + away_diff
-
 
                     # Find the next match and associated information
 
@@ -195,16 +168,14 @@ with sqlite3.connect(in_db_file) as db_in_connection:
 
 
 
-                    print('%s played %s, won %s, drawn %s, lost %s, home_diff %s, away_diff %s, goal_diff %s, points %s' %
-                          (team, played, wins, draws, losses, home_diff, away_diff, goal_diff, points))
+                    print('%s played %s, won %s, drawn %s, lost %s, home_diff %s, away_diff %s' %
+                          (team, played, wins, draws, losses, home_diff, away_diff))
                     print('         win size %s, next match %s, at home %s against %s result %s' %
                           (window_size, next_match_day, next_at_home, next_opponents, next_result))
 
-                    SQL_INSERT = '''INSERT INTO league_tables (win_size, thursday, team, played, won, drawn, lost, home_diff, away_diff, 
-                    goal_diff, points, next_match, next_at_home, next_opponent, next_result) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'''
+                    SQL_INSERT = 'INSERT INTO windowed_stats (win_size, win_end_thursday, team, played, won, drawn, lost, home_diff, away_diff, next_match, next_at_home, next_opponent, next_result) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)'
 
-
-                    db_out_cursor.execute(SQL_INSERT, (window_size, window_end_thursday, team, played, wins, draws, losses, home_diff, away_diff, goal_diff, points, next_match_day, next_at_home, next_opponents, next_result))
+                    db_out_cursor.execute(SQL_INSERT, (window_size, window_end_thursday, team, played, wins, draws, losses, home_diff, away_diff, next_match_day, next_at_home, next_opponents, next_result))
                     # Find the team's next home match and away match
 
         db_out_connection.commit()

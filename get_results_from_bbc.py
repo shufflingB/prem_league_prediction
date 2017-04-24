@@ -11,7 +11,7 @@ from argparse import ArgumentParser
 DEBUG = True
 LIVE_URL = 'http://www.bbc.co.uk/sport/football/premier-league/results'
 TEST_FILE = '/Users/jhume/work/fantasy_football/test.html'
-DB_FILE = '/Users/jhume/work/fantasy_football/test_out.db'
+DB_FILE = '/Users/jhume/work/fantasy_football/raw_results.db'
 TABLE_NAME = 'results'
 
 
@@ -75,7 +75,7 @@ parser.add_argument('-f', '--force',
                     )
 
 parser.add_argument('-t', '--test-file',
-                    help='Specifies a test file, default %s' % TEST_FILE,
+                    help='Specifies a test file html file to parse (as opposed to hitting bbc), default %s' % TEST_FILE,
                     default=TEST_FILE,
                     required=False,
                     type=str
