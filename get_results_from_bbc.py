@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 
+from bs4 import BeautifulSoup, NavigableString
+from argparse import ArgumentParser
 import sqlite3
 import requests
 import re
 import datetime
-from bs4 import BeautifulSoup, NavigableString
-from argparse import ArgumentParser
+import os
+import logging
 
 
 DEBUG = True
@@ -13,6 +15,7 @@ LIVE_URL = 'http://www.bbc.co.uk/sport/football/premier-league/results'
 TEST_FILE = '/Users/jhume/work/fantasy_football/test.html'
 DB_FILE = '/Users/jhume/work/fantasy_football/raw_results.db'
 TABLE_NAME = 'results'
+logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
 
 
 SQL_CREATE_TABLE = """
@@ -30,7 +33,7 @@ SQL_INSERT = '''INSERT INTO %s(date, home_team, home_score, away_team, away_scor
 SQL_DROP_TABLE = '''DROP TABLE IF EXISTS %s;''' % TABLE_NAME
 
 
-def get_match_datetime(match_day_string: NavigableString)->datetime:
+def get_match_date(match_day_string: NavigableString)->datetime.date:
     match_day_string = str(match_day_string)
     # Expected format is  a = "\n\           Monday 17th October 2016    "
     regex_pattern = '(\d+)\w\w\s+(\w+)\s+(\d\d\d\d)'
@@ -42,8 +45,11 @@ def get_match_datetime(match_day_string: NavigableString)->datetime:
     month = match.groups()[1]
     year = match.groups()[2]
 
-    return datetime.datetime.strptime("%s %s %s" % (year, month, day), '%Y %B %d')
-
+    logging.debug('Extracted year %s, month %s, day %s' % (year, month, day))
+    date = datetime.date.fromtimestamp( datetime.datetime.strptime("%s %s %s" % (year, month, day),
+                                                                   '%Y %B %d').timestamp())
+    logging.debug('Created a date object %s' % date)
+    return date
 
 parser: ArgumentParser = ArgumentParser()
 parser.description = "Downloads the Premier League results for the current season from the BBC"
@@ -118,16 +124,18 @@ with sqlite3.connect(out_db_file) as db_connection:
         return False
 
     for match_day_table_html in soup.find_all(table_stats_soup_filter):
-        date = get_match_datetime(match_day_table_html.caption.string)
-        # print(date)
+        date = get_match_date(match_day_table_html.caption.string)
 
         # Match results are contained in <td class="match-details">, however there are also
         # some tags that <td class="match-details" scope='col'> that contain who knows what
         # that need to be filtered out.
+
         for match_details_html in match_day_table_html.find_all(class_='match-details', scope=''):
-            # print(match_details)
+            logging.debug('match_details_html %s' % match_details_html)
             home_team = match_details_html.find(class_='team-home').a.string
+            logging.debug('Extracted home_team %s' % home_team)
             away_team = match_details_html.find(class_='team-away').a.string
+            logging.debug('Extracted away_team %s' % away_team)
 
             score_h_vs_a = match_details_html.find(class_='score').abbr.string  # This is in the form X-Y
             regex_pattern = '(\d+)-(\d+)'
@@ -137,8 +145,8 @@ with sqlite3.connect(out_db_file) as db_connection:
             score_h = match.groups()[0]
             score_a = match.groups()[1]
 
-            insert_arr =(date.isoformat(' '), str(home_team), int(score_h), str(away_team), int(score_a))
+            insert_arr = date.isoformat(), str(home_team), int(score_h), str(away_team), int(score_a)
 
-            print(insert_arr)
+            logging.info('Persisting %s' % insert_arr.__str__())
             db_cursor.execute(SQL_INSERT, insert_arr).fetchall()
             db_connection.commit()
