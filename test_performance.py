@@ -67,12 +67,15 @@ with sqlite3.connect(DB_FILE) as db_in_connection:
         (actual_results, features) = load_next_data(features_window_ends, results_window_ends)
 
         results_for_window_size = {}
+        predictions_for_window_size = {}
         while features_window_ends <= date.today() and actual_results and features:
             #  Work out the performance of the feature against actual matches this results bin interval.
             log.debug('For win size $s on date %s', features)
 
             correctly_predicted_count = 0
             number_of_results = 0
+            wins_prediction = 0
+
             for match_result in actual_results.results_data:
 
                 home_team_name = match_result['home_team']
@@ -90,14 +93,18 @@ with sqlite3.connect(DB_FILE) as db_in_connection:
                 log.debug('Match details %s, %s %i - %i, %s, Prediction features %1.2f - %1.2f' %
                           (match_day, home_team_name, home_score, away_score, away_team_name, home_metric, away_metric))
 
+                home_win_predicted = True if home_metric > away_metric else  False
+                home_loss_predicted = True if home_metric < away_metric else  False
+                draw_predicted = True if home_metric == away_metric else False
+
                 number_of_results += 1
-                if home_metric > away_metric and home_score > away_score:
+                if  home_win_predicted and home_score > away_score:
                     log.debug("Home win predicted correctly")
                     correctly_predicted_count += 1
-                elif home_metric < away_metric and home_score < away_score:
+                elif home_loss_predicted and home_score < away_score:
                     log.debug("Home loss predicted correctly")
                     correctly_predicted_count += 1
-                elif home_metric == away_metric and home_score == away_score:
+                elif draw_predicted and home_score == away_score:
                     log.debug("Draw predicted correctly")
                     correctly_predicted_count += 1
                 else:
