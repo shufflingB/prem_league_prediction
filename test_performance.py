@@ -27,6 +27,7 @@ HOME_ONLY = None
 NORMALISE_BY_MATCHES = True
 MIN_WINDOW_SIZE = 2
 MAX_WINDOW_SIZE = 40
+NUM_TEAMS_IN_LEAGUE = 20
 
 WINDOW_SIZES = [x for x in range(MIN_WINDOW_SIZE, MAX_WINDOW_SIZE + 1)]
 DESCRIPTION_TXT = 'Results prediction performance for different window sizes as for standard Premier League position. '\
@@ -74,7 +75,9 @@ with sqlite3.connect(DB_FILE) as db_in_connection:
 
             correctly_predicted_count = 0
             number_of_results = 0
-            wins_prediction = 0
+            home_wins_predicted = 0
+            away_wins_predicted = 0
+            draws_predicted = 0
 
             for match_result in actual_results.results_data:
 
@@ -86,9 +89,10 @@ with sqlite3.connect(DB_FILE) as db_in_connection:
 
                 match_day = match_result['date']
 
-                home_metric = 1.0 / features.table_position[
-                    home_team_name]  # Lower better for league, so need to convert
-                away_metric = 1.0 / features.table_position[away_team_name]
+                # 'Goodness' metric's for use in comparison, lower is better for league rank, so let's convert it
+                # so we can use absolute size
+                home_metric = NUM_TEAMS_IN_LEAGUE - features.table_position[home_team_name]
+                away_metric = NUM_TEAMS_IN_LEAGUE - features.table_position[away_team_name]
 
                 log.debug('Match details %s, %s %i - %i, %s, Prediction features %1.2f - %1.2f' %
                           (match_day, home_team_name, home_score, away_score, away_team_name, home_metric, away_metric))
