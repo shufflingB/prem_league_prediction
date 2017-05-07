@@ -133,12 +133,12 @@ with sqlite3.connect(DB_FILE) as db_in_connection:
     description_str = ', '.join(['{:<20}'.format('Details'), DESCRIPTION_TXT])
     print(description_str)
 
-    header_str = ', '.join(['{:<20}'.format('Window Sizes'), *['{:^6}'.format(x) for x in WINDOW_SIZES]])
+    header_str = ', '.join(['{:<20}'.format('Window Sizes'), *['{:^7}'.format(x) for x in WINDOW_SIZES]])
     print(header_str)
 
     for key in results_for_all_windows[MIN_WINDOW_SIZE].keys():
         bin_end = key
         bin_results = [results_for_all_windows[win_size][bin_end] for win_size in results_for_all_windows.keys()]
 
-        bin_str = ', '.join(['{:<20}'.format(bin_end), *['{:>6}'.format('%.8f' % x) for x in bin_results]])
+        bin_str = ', '.join(['{:<20}'.format(bin_end), *['{:>6}'.format('%.4f' % x) for x in bin_results]])
         print(bin_str)
