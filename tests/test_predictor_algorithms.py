@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import logging
+import os
 import sqlite3
 
 from datetime import timedelta
@@ -10,9 +11,12 @@ from FeatureLib import FeatureModel, FootballMatchPredictor
 from StatsLib import Stats
 import unittest
 
-PROJECT_DIR = '/Users/jhume/work/fantasy_football'
-RAW_MATCH_RESULTS_IN_DB_FILE = PROJECT_DIR + '/tests/fixture/results_2016_2017_season.db'
-TEST_OUTPUT_STEM_DIR = PROJECT_DIR + '/tests/algorithm_test_results'
+
+
+RAW_MATCH_RESULTS_IN_DB_FILE = os.path.join(os.path.dirname(__file__), 'fixture','results_2016_2017_season.db')
+print(RAW_MATCH_RESULTS_IN_DB_FILE)
+TEST_OUTPUT_STEM_DIR = os.path.join(os.path.dirname(__file__), 'algorithm_test_results')
+print(TEST_OUTPUT_STEM_DIR)
 
 NUM_OF_TEAMS = 20
 ALL_TEAMS_PLAYED_HOME_OR_AWAY = date(2016, 8, 16)  #  Prior to this date not all teams had played at least once

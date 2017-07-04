@@ -1,3 +1,4 @@
+import os
 import sqlite3
 import unittest
 import logging
@@ -6,7 +7,7 @@ from datetime import date, datetime
 from StatsLib import Stats
 
 
-RESULTS_FIXTURE_DATA = './fixture/results_2017_04_28.db'
+RESULTS_FIXTURE_DATA = os.path.join(os.path.dirname(__file__), 'fixture','results_2017_04_28.db')
 
 FIRST_MATCHDAY = date.fromtimestamp(datetime.strptime('2016-08-13', '%Y-%m-%d').timestamp())
 

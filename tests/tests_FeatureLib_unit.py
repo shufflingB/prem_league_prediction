@@ -1,3 +1,4 @@
+import os
 import sqlite3
 import unittest
 from datetime import date
@@ -8,7 +9,7 @@ import numpy as np
 from FeatureLib import Feature, FeatureModel, FootballMatchPredictor
 from StatsLib import Stats
 
-RESULTS_FIXTURE_DATA = './fixture/results_2017_04_28.db'
+RESULTS_FIXTURE_DATA = os.path.join(os.path.dirname(__file__), 'fixture','results_2017_04_28.db')
 
 
 class FeatureTests(unittest.TestCase):

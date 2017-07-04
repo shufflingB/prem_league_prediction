@@ -1,10 +1,11 @@
+import os
 import unittest
 import sqlite3
 from datetime import date
 
 from StatsLib import Stats, create_league_using_windowed_stats
 
-RESULTS_FIXTURE_DATA = './fixture/results_2017_04_28.db'
+RESULTS_FIXTURE_DATA = os.path.join(os.path.dirname(__file__), 'fixture','results_2017_04_28.db')
 
 TEAMS = ['Arsenal', 'Bournemouth', 'Burnley', 'Chelsea', 'Crystal Palace', 'Everton', 'Hull City',
          'Leicester City', 'Liverpool', 'Manchester City', 'Manchester United', 'Middlesbrough',
