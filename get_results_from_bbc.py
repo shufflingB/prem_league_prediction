@@ -9,11 +9,14 @@ import datetime
 import os
 import logging
 
+from datetime import date
+
 
 DEBUG = True
 LIVE_URL = 'http://www.bbc.co.uk/sport/football/premier-league/results'
 TEST_FILE = '/Users/jhume/work/fantasy_football/test.html'
 DB_FILE = '/Users/jhume/work/fantasy_football/raw_results.db'
+MANAGER_DB_FILE = '/Users/jhume/work/fantasy_football/tests/fixture/managers_2017_05_17.db'
 TABLE_NAME = 'results'
 logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
 
@@ -51,8 +54,25 @@ def get_match_date(match_day_string: NavigableString)->datetime.date:
     logging.debug('Created a date object %s' % date)
     return date
 
+def get_manager(managers_db_cursor: sqlite3.Cursor, team_name: str, on_date: date) -> str:
+    # This is a bit more complicated than might at first be thought because we have to deal with incidences where there
+    # is no manager in place, e.g. Watford from 2016-05-30 when Quique departed, to
+    # 2016-07-01 when Walter arrived.
+    # To do this we bear in mind that we're only really interested in the impact of the manager on the team, so we'll
+    # assume that a team will remain largely the same, post manager departure, until the next person arrives. This in
+    # turn translates into a query for all managers for the club who have been appointed upto, or prior to the date
+    # being checked and to then just take the most recent one for the enquiry date.
+    sql = 'SELECT * FROM managers WHERE team_name="%s" AND appointed <="%s" ORDER BY appointed DESC LIMIT 1' % \
+          (team_name, on_date )
+    logging.debug('Looking up manager with %s' % sql)
+    query_out = managers_db_cursor.execute(sql).fetchone()
+    logging.debug('Got manager name %s' % query_out['manager_name'])
+    return query_out['manager_name']
+
+
+
 parser: ArgumentParser = ArgumentParser()
-parser.description = "Downloads the Premier League results for the current season from the BBC"
+parser.description = "Downloads the Premier PremierLeague results for the current season from the BBC"
 
 parser.add_argument('-u', '--url',
                     help='Specifies the url to download from %s' % LIVE_URL,
@@ -69,7 +89,8 @@ parser.add_argument('-o', '--out-db',
                     )
 
 parser.add_argument('-d', '--debug',
-                    help='Rather than downloading fresh data, parse the debug test file %s' % TEST_FILE,
+                    help='Increase log level and rather than downloading fresh data, parse the debug test file %s' %
+                         TEST_FILE,
                     default=False,
                     action='store_true'
                     )
@@ -79,6 +100,15 @@ parser.add_argument('-f', '--force',
                     default=False,
                     action='store_true'
                     )
+
+
+parser.add_argument('-m', '--managers-db',
+                    help='Merges manager information from the specified DB file, default %s ' % None,
+                    default=None,
+                    required=False,
+                    type=str
+                    )
+
 
 parser.add_argument('-t', '--test-file',
                     help='Specifies a test file html file to parse (as opposed to hitting bbc), default %s' % TEST_FILE,
@@ -91,6 +121,7 @@ parser.add_argument('-t', '--test-file',
 args = parser.parse_args()
 url_path = args.url
 out_db_file = args.out_db
+managers_db_file = args.managers_db
 debug = args.debug
 drop_table = args.force
 test_file = args.test_file
@@ -98,6 +129,7 @@ test_file = args.test_file
 
 data = None
 if debug:
+    logging.basicConfig(level=DEBUG)
     with open(file=test_file) as infile:
         data = infile.read()
 else:
@@ -106,8 +138,10 @@ else:
 
 soup = BeautifulSoup(data, 'html.parser')
 
-with sqlite3.connect(out_db_file) as db_connection:
-    db_cursor = db_connection.cursor()
+
+
+with sqlite3.connect(out_db_file) as db_in_connection:
+    db_cursor = db_in_connection.cursor()
     if drop_table:
         db_cursor.execute(SQL_DROP_TABLE)
 
@@ -122,6 +156,13 @@ with sqlite3.connect(out_db_file) as db_connection:
             if re.search(good_table_str, tag.caption.string):
                 return True
         return False
+
+
+    if managers_db_file:
+        logging.debug('Connecting to managers DB in %s' % managers_db_file)
+        db_managers = sqlite3.connect(managers_db_file)
+        db_managers.row_factory= sqlite3.Row
+        db_managers_cursor = db_managers.cursor()
 
     for match_day_table_html in soup.find_all(table_stats_soup_filter):
         date = get_match_date(match_day_table_html.caption.string)
@@ -142,11 +183,19 @@ with sqlite3.connect(out_db_file) as db_connection:
             match = re.search(regex_pattern, score_h_vs_a)
             assert match is not None, "Failed to capture scores info, regex '%s', string '%s'" % \
                                       (regex_pattern, score_h_vs_a)
-            score_h = match.groups()[0]
-            score_a = match.groups()[1]
+            score_home = match.groups()[0]
+            score_away = match.groups()[1]
 
-            insert_arr = date.isoformat(), str(home_team), int(score_h), str(away_team), int(score_a)
+            home_team_str = home_team
+            away_team_str = away_team
+            if managers_db_file:
+                home_manager = get_manager(managers_db_cursor=db_managers_cursor, team_name=home_team, on_date=date)
+                home_team_str = '%s\'s %s' % (home_manager, home_team)
+                away_manager = get_manager(managers_db_cursor=db_managers_cursor, team_name=away_team, on_date=date)
+                away_team_str = '%s\'s %s' % (away_manager, away_team)
+
+            insert_arr = date.isoformat(), str(home_team_str), int(score_home), str(away_team_str), int(score_away)
 
             logging.info('Persisting %s' % insert_arr.__str__())
             db_cursor.execute(SQL_INSERT, insert_arr).fetchall()
-            db_connection.commit()
+            db_in_connection.commit()
